@@ -16,22 +16,30 @@ jobs:
       output: ${{ steps.get-version.outputs.version }}
     steps:
       - id: get-version
-        run: | 
+        run: |
           VERSION=$(curl --silent 'https://forum.makemkv.com/forum/viewtopic.php?f=3&t=224' | grep MakeMKV.*.for.Linux.is | head -n 1 | sed -e 's/.*MakeMKV //g' -e 's/ .*//g')
-          echo $VERSION
-          echo "version=$VERSION" >>$GITHUB_OUTPUT
-          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
     needs: version-check
     steps:
       - uses: actions/checkout@v4
-      - uses: whoan/docker-build-with-cache-action@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
           username: "${{ secrets.DOCKERUSER }}"
           password: "${{ secrets.DOCKERPASS }}"
-          image_name: "${{ env.ENDPOINT }}"
-          image_tag: manual-latest,${{needs.version-check.outputs.output}}
+
+      - uses: docker/build-push-action@v6
+        with:
           context: "./"
-          dockerfile: "./manual-build/Dockerfile"
-          stages_image_name: "rix1337/cache-ripper-manual-build"
+          file: "./manual-build/Dockerfile"
+          push: true
+          tags: |
+            ${{ env.ENDPOINT }}:manual-latest
+            ${{ env.ENDPOINT }}:${{ needs.version-check.outputs.output }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
