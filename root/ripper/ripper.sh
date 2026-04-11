@@ -99,7 +99,7 @@ cleanup_tmp_files() {
 
 check_disc() {
    debug_log "Checking disc."
-   INFO=$(makemkvcon -r --cache=1 info disc:9999 | grep DRV:.*$DRIVE)
+   INFO=$(timeout 30s makemkvcon -r --cache=1 --noscan info disc:9999 | grep DRV:.*$DRIVE)
    debug_log "INFO: $INFO"
    DISC_TYPE="" # Clear previous disc type value
 
@@ -111,6 +111,14 @@ check_disc() {
          break
       fi
    done
+
+   # If MakeMKV reports empty, double-check with cdparanoia for audio CDs
+   if [[ "$DISC_TYPE" == "empty" ]]; then
+      if cdparanoia -d "$DRIVE" -Q 2>&1 | grep -q "audio tracks"; then
+         DISC_TYPE="cd1"
+         debug_log "Audio CD detected via cdparanoia fallback."
+      fi
+   fi
 
    if [[ -z "$DISC_TYPE" ]]; then
       printf "%s : Unexpected makemkvcon output: %s\n" "$(date "+%d.%m.%Y %T")" "$INFO"
