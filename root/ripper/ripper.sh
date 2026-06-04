@@ -99,11 +99,7 @@ cleanup_tmp_files() {
 
 check_disc() {
    debug_log "Checking disc."
-   INFO=$(timeout 30s makemkvcon -r --cache=1 --noscan info disc:9999 | grep DRV:.*$DRIVE)
-   if echo "$INFO" | grep -E -q 'DRV:[0-9]+,0,999,0,"'; then
-     debug_log "Fast scan reported empty; retrying with full scan."
-     INFO=$(timeout 60s makemkvcon -r --cache=1 info disc:9999 | grep "DRV:.*$DRIVE")
-   fi
+   INFO=$(timeout 30s makemkvcon -r --cache=1 info disc:9999 | grep DRV:.*$DRIVE)
    debug_log "INFO: $INFO"
    DISC_TYPE="" # Clear previous disc type value
 
