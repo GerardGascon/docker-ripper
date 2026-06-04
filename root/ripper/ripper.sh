@@ -99,7 +99,7 @@ cleanup_tmp_files() {
 
 check_disc() {
    debug_log "Checking disc."
-   INFO=$(timeout 30s makemkvcon -r --cache=1 --noscan info disc:9999 | grep DRV:.*$DRIVE)
+   INFO=$(timeout 30s makemkvcon -r --cache=1 info disc:9999 | grep DRV:.*$DRIVE)
    debug_log "INFO: $INFO"
    DISC_TYPE="" # Clear previous disc type value
 
