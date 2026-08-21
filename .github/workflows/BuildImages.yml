@@ -14,20 +14,6 @@ env:
   ENDPOINT: ghcr.io/gerardgascon/docker-ripper
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      latest: ${{ steps.filter.outputs.latest }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            latest:
-              - '**'
-              - '!README.md'
-
   build:
     strategy:
       matrix:
@@ -55,7 +41,7 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest-${{ matrix.arch }}
+            ${{ env.ENDPOINT }}:latest-${{ matrix.arch }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
 
