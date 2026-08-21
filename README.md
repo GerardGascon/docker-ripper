@@ -44,7 +44,6 @@ docker run -d \
   --name="Ripper" \
   -v /path/to/config/:/config:rw \
   -v /path/to/rips/:/out:rw \
-  -p port:9090 \
   --device=/dev/sr0:/dev/sr0 \
   --device=/dev/sg0:/dev/sg0 \
   rix1337/docker-ripper:manual-latest

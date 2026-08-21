@@ -1,5 +1,4 @@
 FROM phusion/baseimage:noble-1.0.0
-LABEL maintainer="rix1337"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
@@ -21,27 +20,13 @@ RUN add-apt-repository -y ppa:heyarje/makemkv-beta && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
       abcde \
-      ccextractor \
       eject \
-      eyed3 \
       flac \
-      gddrescue \
       glyrc \
-      git \
-      id3 \
-      id3v2 \
       lame \
       makemkv-bin \
       makemkv-oss \
-      mkcue \
-      python3 \
-      python3-docopt \
-      python3-flask \
-      python3-waitress \
       sdparm \
-      speex \
-      vorbis-tools \
-      vorbisgain \
       wget && \
     apt-get autoremove -y && \
     apt-get clean && \
