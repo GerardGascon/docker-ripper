@@ -1,29 +1,28 @@
 version: '3.3'
 services:
-    docker-ripper:
-        container_name: Ripper
-        build: # optional - use this if you want to build the image yourself
-           dockerfile: latest/Dockerfile # this uses the repo version of makemkvcon
-#        image: rix1337/docker-ripper:latest
-        volumes:
-            #- ./ripper-config:/config:rw # optional - path to the config folder - if not provided, a default config will be used
-            - ./ripper-output:/out:rw
-#        devices:
-#            - /dev/sr0:/dev/sr0
-#            - /dev/sg0:/dev/sg0
-        environment:
-            - SEPARATERAWFINISH=true # optional - true/false - separate the raw files from the finished files
-            - EJECTENABLED=true # optional - true/false - eject the disc when finished
-            - STORAGE_CD=/out/Ripper/CD # optional - path to the storage folder for CD rips - should be to a folder in the mounted /out volume
-            - STORAGE_DVD=/out/Ripper/DVD # optional - path to the storage folder for DVD rips - should be to a folder in the mounted /out volume
-            - STORAGE_BD=/out/Ripper/BluRay # optional - path to the storage folder for BD rips - should be to a folder in the mounted /out volume
-            - DRIVE=/dev/sr0 # optional - path to the optical drive - should be to the mounted /dev/sr0 device
-            - TIMESTAMPPREFIX=false # optional - true/false - prefix the output folder with a timestamp
-            - DEBUG=false # optional - true/false - enable debug logging
-            - MINIMUMLENGTH=600 # optional - minimum length of the disc in seconds - if the disc or chapter is shorter than this, it will not be ripped
-            - FILEUSER=nobody # optional - defines the user ownership of created files
-            - FILEUSERID=321 # optional - use along with FILEUSER to specify user id of created files
-            - FILEGROUP=users # optional - defines the group ownership of created files
-            - FILEGROUPID=4321 # optional - use along with FILEGROUP to specify group id of created files
-            - FILEMODE=g+rw # optional - defines the permissions set on created files
-        #    - KEY=T-eX4mpl3FoQCIORraCfuH3X@qEyMjXXCduqtd8xNt4rjNRZf3Y2BRrIlJqxODbBo@KTW # optional - an officially purchased MakeMKV license key
+  docker-ripper:
+    user: 950:950
+    container_name: Ripper
+    build: # optional - use this if you want to build the image yourself
+      dockerfile: latest/Dockerfile # this uses the repo version of makemkvcon
+    #        image: rix1337/docker-ripper:latest
+    volumes:
+      #- ./ripper-config:/config:rw # optional - path to the config folder - if not provided, a default config will be used
+      - ./ripper-output:/out:rw
+    #        devices:
+    #            - /dev/sr0:/dev/sr0
+    #            - /dev/sg0:/dev/sg0
+    environment:
+      - SEPARATERAWFINISH=true # optional - true/false - separate the raw files from the finished files
+      - EJECTENABLED=true # optional - true/false - eject the disc when finished
+      - STORAGE_CD=/out/Ripper/CD # optional - path to the storage folder for CD rips - should be to a folder in the mounted /out volume
+      - STORAGE_DVD=/out/Ripper/DVD # optional - path to the storage folder for DVD rips - should be to a folder in the mounted /out volume
+      - STORAGE_BD=/out/Ripper/BluRay # optional - path to the storage folder for BD rips - should be to a folder in the mounted /out volume
+      - DRIVE=/dev/sr0 # optional - path to the optical drive - should be to the mounted /dev/sr0 device
+      - TIMESTAMPPREFIX=false # optional - true/false - prefix the output folder with a timestamp
+      - DEBUG=false # optional - true/false - enable debug logging
+      - MINIMUMLENGTH=600 # optional - minimum length of the disc in seconds - if the disc or chapter is shorter than this, it will not be ripped
+      - FILEUSER=321 # optional - defines the user ownership of created files
+      - FILEGROUP=4321 # optional - defines the group ownership of created files
+      - FILEMODE=g+rw # optional - defines the permissions set on created files
+    #    - KEY=T-eX4mpl3FoQCIORraCfuH3X@qEyMjXXCduqtd8xNt4rjNRZf3Y2BRrIlJqxODbBo@KTW # optional - an officially purchased MakeMKV license key

@@ -4,7 +4,7 @@ RIPPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGFILE="/config/Ripper.log"
 
 # Startup Info
-printf "Starting Ripper. Optical Discs will be detected and ripped within 60 seconds.\n"
+printf "Starting Ripper. Optical Discs will be detected and ripped.\n"
 
 # Set default values for configuration options if not already set
 : "${EJECTENABLED:=true}"
@@ -88,8 +88,6 @@ check_disc() {
 
    INFO=$(printf '%s\n' "$makemkv_output" | grep -F "$DRIVE" | grep '^DRV:')
 
-   printf "INFO: %s\n" "$INFO"
-
    DISC_TYPE=""
 
    for TYPE in "${!DRIVE_TYPE_PATTERNS[@]}"; do
@@ -97,7 +95,6 @@ check_disc() {
 
       if printf '%s\n' "$INFO" | grep -E -q "$PATTERN"; then
          DISC_TYPE="$TYPE"
-         printf "Detected disc type: %s\n" "$DISC_TYPE"
          break
       fi
    done
@@ -106,7 +103,6 @@ check_disc() {
    if [[ "$DISC_TYPE" == "empty" ]]; then
       if cdparanoia -d "$DRIVE" -Q 2>&1 | grep -q "audio tracks"; then
          DISC_TYPE="cd1"
-         printf "Audio CD detected via cdparanoia fallback.\n"
       fi
    fi
 
@@ -253,15 +249,14 @@ launcher_function() {
 
       case "$DISC_TYPE" in
          "empty")
-            printf "No disc inserted, checking again in 1 minute.\n"
             ;;
 
          "open")
-            printf "Disc tray open, checking again in 1 minute.\n"
+            printf "Disc tray open, checking again in 5 seconds.\n"
             ;;
 
          "loading")
-            printf "Disc loading, checking again in 1 minute.\n"
+            printf "Disc loading, checking again in 5 seconds.\n"
             ;;
 
          "bd1"|"bd2"|"dvd"|"cd1"|"cd2")
@@ -284,7 +279,7 @@ launcher_function() {
             ;;
       esac
 
-      sleep 1m
+      sleep 5
    done
 }
 
