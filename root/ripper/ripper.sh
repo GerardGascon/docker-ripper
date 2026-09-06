@@ -71,20 +71,38 @@ cleanup_tmp_files() {
 }
 
 check_disc() {
-   INFO=$(timeout 30s makemkvcon -r --cache=1 info disc:9999 | grep DRV:.*$DRIVE)
-   printf "INFO: $INFO"
-   DISC_TYPE="" # Clear previous disc type value
+   local makemkv_output
+
+   INFO=""
+
+   makemkv_output=$(timeout 30s makemkvcon -r --cache=1 info disc:9999 2>&1)
+   local rc=$?
+
+   if [ "$rc" -ne 0 ]; then
+      printf "makemkvcon failed with exit code %d\n" "$rc"
+      printf "makemkvcon output: %s\n" "$makemkv_output"
+      DISC_TYPE=""
+      ((BAD_RESPONSE++))
+      return
+   fi
+
+   INFO=$(printf '%s\n' "$makemkv_output" | grep -F "$DRIVE" | grep '^DRV:')
+
+   printf "INFO: %s\n" "$INFO"
+
+   DISC_TYPE=""
 
    for TYPE in "${!DRIVE_TYPE_PATTERNS[@]}"; do
-      PATTERN=${DRIVE_TYPE_PATTERNS[$TYPE]}
-      if echo "$INFO" | grep -E -q "$PATTERN"; then
-         DISC_TYPE=$TYPE
-         printf "Detected disc type: $DISC_TYPE"
+      PATTERN="${DRIVE_TYPE_PATTERNS[$TYPE]}"
+
+      if printf '%s\n' "$INFO" | grep -E -q "$PATTERN"; then
+         DISC_TYPE="$TYPE"
+         printf "Detected disc type: %s\n" "$DISC_TYPE"
          break
       fi
    done
 
-   # If MakeMKV reports empty, double-check with cdparanoia for audio CDs
+   # Audio CD fallback
    if [[ "$DISC_TYPE" == "empty" ]]; then
       if cdparanoia -d "$DRIVE" -Q 2>&1 | grep -q "audio tracks"; then
          DISC_TYPE="cd1"
@@ -93,7 +111,7 @@ check_disc() {
    fi
 
    if [[ -z "$DISC_TYPE" ]]; then
-      printf "Unexpected makemkvcon output: %s\n" "$INFO"
+      printf "Unable to determine disc type.\n"
       ((BAD_RESPONSE++))
    else
       BAD_RESPONSE=0
@@ -232,29 +250,41 @@ launcher_function() {
    while true; do
       cleanup_tmp_files
       check_disc
+
       case "$DISC_TYPE" in
-      "empty")
-         printf "No disc inserted, checking again in 1 minute.\n"
-         ;;
-      "open")
-         printf "Disc tray open, checking again in 1 minute.\n"
-         ;;
-      "loading")
-         printf "Disc loading, checking again in 1 minute.\n"
-         ;;
-      *)
-         if [ "$BAD_RESPONSE" -lt "$BAD_THRESHOLD" ]; then
+         "empty")
+            printf "No disc inserted, checking again in 1 minute.\n"
+            ;;
+
+         "open")
+            printf "Disc tray open, checking again in 1 minute.\n"
+            ;;
+
+         "loading")
+            printf "Disc loading, checking again in 1 minute.\n"
+            ;;
+
+         "bd1"|"bd2"|"dvd"|"cd1"|"cd2")
             process_disc_type
             ejectdisc
-         else
-            printf "Too many bad responses, checking stopped.\n"
-            debug_log "Too many bad responses, checking stopped."
-            ejectdisc
-            exit 1
-         fi
-         ;;
+            ;;
+
+         "")
+            printf "Unable to determine drive state. Bad response %d/%d.\n" \
+                "$BAD_RESPONSE" "$BAD_THRESHOLD"
+
+            if [ "$BAD_RESPONSE" -ge "$BAD_THRESHOLD" ]; then
+               printf "Too many bad responses, checking stopped.\n"
+               exit 1
+            fi
+            ;;
+
+         *)
+            printf "Disc type '%s' not recognized.\n" "$DISC_TYPE"
+            ;;
       esac
-      sleep 1m # Wait 1 minute before checking for a new disc
+
+      sleep 1m
    done
 }
 
