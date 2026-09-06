@@ -4,7 +4,7 @@ RIPPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGFILE="/config/Ripper.log"
 
 # Startup Info
-printf "%s : Starting Ripper. Optical Discs will be detected and ripped within 60 seconds.\n"
+printf "Starting Ripper. Optical Discs will be detected and ripped within 60 seconds.\n"
 
 # Set default values for configuration options if not already set
 : "${EJECTENABLED:=true}"
@@ -57,7 +57,7 @@ get_disc_directory() {
    local timestamp_prefix="$3"
    local disc_directory=""
 
-   if [[ "$TIMESTAMPPREFIX" == "true" ]]; then
+   if [[ "$timestamp_prefix" == "true" ]]; then
       disc_directory="${storage_root}/$(date "+%Y%m%d_%H%M%S")_${disc_label}"
    else
       disc_directory="${storage_root}/${disc_label}"
@@ -67,12 +67,7 @@ get_disc_directory() {
 }
 
 cleanup_tmp_files() {
-   printf "Cleaning up temporary files."
-   local tmp_dir="/tmp"
-   cd "$tmp_dir" || exit
-   rm -rf ./*.tmp 2>/dev/null
-   cd - || exit
-   printf "Temporary file cleanup completed."
+    rm -f /tmp/*.tmp 2>/dev/null
 }
 
 check_disc() {
@@ -118,7 +113,7 @@ handle_bd_disc() {
    local alt_rip="${RIPPER_DIR}/BLURAYrip.sh"
    if [[ -f $alt_rip && -x $alt_rip ]]; then
       printf "BluRay detected: Executing %s\n" "$alt_rip"
-      $alt_rip "$disc_number" "$bd_path" "$LOGFILE"
+      "$alt_rip" "$disc_number" "$bd_path" "$LOGFILE"
    else
       printf "BluRay detected: Saving MKV\n"
       makemkvcon --profile=/config/default.mmcp.xml -r --decrypt --minlength="$MINIMUMLENGTH" mkv disc:"$disc_number" all "$bd_path" >>"$LOGFILE" 2>&1
@@ -140,7 +135,7 @@ handle_dvd_disc() {
    local alt_rip="${RIPPER_DIR}/DVDrip.sh"
    if [[ -f $alt_rip && -x $alt_rip ]]; then
       printf "DVD detected: Executing %s\n" "$alt_rip"
-      $alt_rip "$disc_number" "$dvd_path" "$LOGFILE"
+      "$alt_rip" "$disc_number" "$dvd_path" "$LOGFILE"
    else
       printf "DVD detected: Saving MKV\n"
       makemkvcon --profile=/config/default.mmcp.xml -r --decrypt --minlength="$MINIMUMLENGTH" mkv disc:"$disc_number" all "$dvd_path" >>"$LOGFILE" 2>&1
@@ -154,7 +149,7 @@ handle_cd_disc() {
    local alt_rip="${RIPPER_DIR}/CDrip.sh"
    if [[ -f $alt_rip && -x $alt_rip ]]; then
       printf "CD detected: Executing %s\n" "$alt_rip"
-      $alt_rip "$DRIVE" "$STORAGE_CD" "$LOGFILE"
+      "$alt_rip" "$DRIVE" "$STORAGE_CD" "$LOGFILE"
    else
       printf "CD detected: Saving FLAC\n"
       /usr/bin/abcde -d "$DRIVE" -c /ripper/abcde.conf -N -x -l >>"$LOGFILE" 2>&1
@@ -252,7 +247,7 @@ launcher_function() {
             process_disc_type
             ejectdisc
          else
-            printf "%s : Too many bad responses, checking stopped.\n" "$(date "+%d.%m.%Y %T")"
+            printf "Too many bad responses, checking stopped.\n"
             debug_log "Too many bad responses, checking stopped."
             ejectdisc
             exit 1
