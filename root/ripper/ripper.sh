@@ -29,9 +29,6 @@ check_disc() {
    cd_output=$(timeout 30s cdparanoia -d "$DRIVE" -Q 2>&1)
    rc=$?
 
-   printf "cdparanoia exit code: %d\n" "$rc"
-   printf '%s\n' "$cd_output"
-
    # Audio CD detected.
    if [[ "$rc" -eq 0 ]] && \
       printf '%s\n' "$cd_output" | grep -qi "audio tracks"; then
