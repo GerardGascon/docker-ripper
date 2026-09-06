@@ -11,25 +11,9 @@ printf "Starting Ripper. Optical Discs will be detected and ripped.\n"
 : "${STORAGE_CD:=/out/Ripper/CD}"
 : "${DRIVE:=/dev/sr0}"
 : "${BAD_THRESHOLD:=5}"
-: "${DEBUG:=false}"
-: "${SEPARATERAWFINISH:=false}"
-: "${TIMESTAMPPREFIX:=false}"
 : "${FILEUSER:=nobody}"
 : "${FILEGROUP:=users}"
 : "${FILEMODE:=g+rw}"
-# Print the values of configuration options if DEBUG is enabled
-if [[ "$DEBUG" == true ]]; then
-   printf "SEPARATERAWFINISH: %s\n" "$SEPARATERAWFINISH"
-   printf "EJECTENABLED: %s\n" "$EJECTENABLED"
-   printf "TIMESTAMPPREFIX: %s\n" "$TIMESTAMPPREFIX"
-   printf "STORAGE_CD: %s\n" "$STORAGE_CD"
-   printf "DRIVE: %s\n" "$DRIVE"
-   printf "BAD_THRESHOLD: %s\n" "$BAD_THRESHOLD"
-   printf "DEBUG: %s\n" "$DEBUG"
-   printf "FILEUSER: %s\n" "$FILEUSER"
-   printf "FILEGROUP: %s\n" "$FILEGROUP"
-   printf "FILEMODE: %s\n" "$FILEMODE"
-fi
 
 BAD_RESPONSE=0
 DISC_TYPE=""
@@ -66,7 +50,7 @@ check_disc() {
 
    printf "Unable to determine drive state.\n"
    printf "cdparanoia output: %s\n" "$cd_output"
-   ((BAD_RESPONSE++)
+   ((BAD_RESPONSE++))
 }
 
 handle_cd_disc() {
