@@ -8,17 +8,13 @@ printf "%s : Starting Ripper. Optical Discs will be detected and ripped within 6
 
 # Set default values for configuration options if not already set
 : "${EJECTENABLED:=true}"
-: "${JUSTMAKEISO:=false}"
 : "${STORAGE_CD:=/out/Ripper/CD}"
-: "${STORAGE_DATA:=/out/Ripper/DATA}"
 : "${STORAGE_DVD:=/out/Ripper/DVD}"
 : "${STORAGE_BD:=/out/Ripper/BluRay}"
 : "${DRIVE:=/dev/sr0}"
 : "${BAD_THRESHOLD:=5}"
 : "${DEBUG:=false}"
-: "${DEBUGTOWEB:=false}"
 : "${SEPARATERAWFINISH:=false}"
-: "${ALSOMAKEISO:=false}"
 : "${TIMESTAMPPREFIX:=false}"
 : "${MINIMUMLENGTH:=600}"
 : "${FILEUSER:=nobody}"
@@ -29,23 +25,18 @@ if [[ "$DEBUG" == true ]]; then
    printf "SEPARATERAWFINISH: %s\n" "$SEPARATERAWFINISH"
    printf "EJECTENABLED: %s\n" "$EJECTENABLED"
    printf "TIMESTAMPPREFIX: %s\n" "$TIMESTAMPPREFIX"
-   printf "JUSTMAKEISO: %s\n" "$JUSTMAKEISO"
-   printf "ALSOMAKEISO: %s\n" "$ALSOMAKEISO"
    printf "STORAGE_CD: %s\n" "$STORAGE_CD"
-   printf "STORAGE_DATA: %s\n" "$STORAGE_DATA"
    printf "STORAGE_DVD: %s\n" "$STORAGE_DVD"
    printf "STORAGE_BD: %s\n" "$STORAGE_BD"
    printf "DRIVE: %s\n" "$DRIVE"
    printf "BAD_THRESHOLD: %s\n" "$BAD_THRESHOLD"
    printf "DEBUG: %s\n" "$DEBUG"
-   printf "DEBUGTOWEB: %s\n" "$DEBUGTOWEB"
    printf "MINIMUMLENGTH: %s\n" "$MINIMUMLENGTH"
    printf "FILEUSER: %s\n" "$FILEUSER"
    printf "FILEGROUP: %s\n" "$FILEGROUP"
    printf "FILEMODE: %s\n" "$FILEMODE"
 fi
 
-JUST_MADE_ISO=false
 BAD_RESPONSE=0
 DISC_TYPE=""
 # Define the drive types and patterns to match against the output of makemkvcon
@@ -186,8 +177,8 @@ handle_cd_disc() {
       debug_log "Executing alternative CD rip script."
       $alt_rip "$DRIVE" "$STORAGE_CD" "$LOGFILE"
    else
-      printf "%s : CD detected: Saving MP3 and FLAC\n" "$(date "+%d.%m.%Y %T")"
-      debug_log "Saving CD as MP3 and FLAC."
+      printf "%s : CD detected: Saving FLAC\n" "$(date "+%d.%m.%Y %T")"
+      debug_log "Saving CD as FLAC."
       /usr/bin/abcde -d "$DRIVE" -c /ripper/abcde.conf -N -x -l >>"$LOGFILE" 2>&1
    fi
    printf "%s : Completed CD rip.\n" "$(date "+%d.%m.%Y %T")"
@@ -195,34 +186,6 @@ handle_cd_disc() {
    chown -R "$FILEUSER":"$FILEGROUP" "$STORAGE_CD" && chmod -R "$FILEMODE" "$STORAGE_CD"
    debug_log "Changed owner and permissions for: $STORAGE_CD"
 }
-
-handle_data_disc() {
-   local disc_info="$1"
-   debug_log "Handling data disc."
-   local disc_label="$(echo "$disc_info" | grep "$DRIVE" | grep -o -P '(?<=",").*(?=",")')"
-   local data_directory
-   data_directory=$(get_disc_directory "$STORAGE_DATA" "$disc_label" "$TIMESTAMPPREFIX")
-   local iso_filename="${disc_label}.iso"
-   local iso_path="${data_directory}/${iso_filename}"
-   debug_log "Disc label: $disc_label, ISO path: $iso_path"
-   mkdir -p "$data_directory"
-   local alt_rip="${RIPPER_DIR}/DATArip.sh"
-   if [[ -f $alt_rip && -x $alt_rip ]]; then
-      printf "%s : Data-disc detected: Executing %s\n" "$(date "+%d.%m.%Y %T")" "$alt_rip"
-      debug_log "Executing alternative DATA disc rip script."
-      $alt_rip "$DRIVE" "$iso_path" "$LOGFILE"
-   else
-      printf "%s : Data-disc detected: Saving ISO\n" "$(date "+%d.%m.%Y %T")"
-      debug_log "Saving data-disc as ISO."
-      ddrescue "$DRIVE" "$iso_path" >>"$LOGFILE" 2>&1
-   fi
-   printf "%s : Done saving ISO.\n" "$(date "+%d.%m.%Y %T")"
-   debug_log "Done saving ISO."
-   chown -R "$FILEUSER":"$FILEGROUP" "$STORAGE_DATA" && chmod -R "$FILEMODE" "$STORAGE_DATA"
-   debug_log "Changed owner and permissions for: $STORAGE_DATA"
-   JUST_MADE_ISO=true
-}
-
 
 move_to_finished() {
    local src_path="$1"
@@ -268,17 +231,6 @@ ejectdisc() {
          sleep 5
       done
    fi
-
-   if [ -z ${POVER_APP_TOKEN+x} ] || [ -z ${POVER_USER_KEY+x} ]; then
-      debug_log "Pushover API keys not set, skipping"
-   else
-      debug_log "Sending pushover notification"
-      curl --fail -s \
-         --form-string "token=${POVER_APP_TOKEN}" \
-         --form-string "user=${POVER_USER_KEY}" \
-         --form-string "message=Ripper has finished ripping your disc!" \
-         https://api.pushover.net/1/messages.json
-   fi
 }
 
 process_disc_type() {
@@ -306,7 +258,7 @@ process_disc_type() {
       handle_cd_disc "$INFO"
       ;;
    *)
-      printf "%s : Disc type not recognized.\n" "$(date "+%d.%m.%Y %T")"
+      printf "%s : Disc type '%s' not recognized.\n" "$(date "+%d.%m.%Y %T")" "$DISC_TYPE"
       debug_log "Disc type not recognized."
 
       ;;
@@ -316,7 +268,6 @@ process_disc_type() {
 launcher_function() {
    debug_log "Starting main function."
    while true; do
-      JUST_MADE_ISO=false
       cleanup_tmp_files
       check_disc
       case "$DISC_TYPE" in
@@ -333,31 +284,7 @@ launcher_function() {
          debug_log "Disc loading, checking again in 1 minute."
          ;;
       *)
-         if [ "$BAD_RESPONSE" -lt "$BAD_THRESHOLD" ]; then
-            case "$JUSTMAKEISO" in
-            "true")
-               printf "%s : JustMakeISO is enabled. Saving ISO.\n" "$(date "+%d.%m.%Y %T")"
-               debug_log "JustMakeISO is enabled. Saving ISO."
-               handle_data_disc "$INFO"
-               ejectdisc
-               ;;
-            *)
-               process_disc_type
-               case "$ALSOMAKEISO" in
-               "true")
-                  # we already handled the disc, so we just need to make the ISO unless we just made an ISO
-                  # we use JUST_MADE_ISO to prevent making an ISO twice it is reset at the beginning of the loop and set to true after making an ISO
-                  printf "%s : AlsoMakeISO is enabled. Saving ISO.\n" "$(date "+%d.%m.%Y %T")"
-                  debug_log "AlsoMakeISO is enabled. Saving ISO."
-                  if [ "$JUST_MADE_ISO" = false ]; then
-                     handle_data_disc "$INFO"
-                  fi
-                  ;;
-               esac
-               ejectdisc
-               ;;
-            esac
-         else
+         if [ "$BAD_RESPONSE" -ge "$BAD_THRESHOLD" ]; then
             printf "%s : Too many bad responses, checking stopped.\n" "$(date "+%d.%m.%Y %T")"
             debug_log "Too many bad responses, checking stopped."
             ejectdisc

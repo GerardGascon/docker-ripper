@@ -1,128 +1,81 @@
 #!/bin/bash
 
-mkdir -p /config
+# The container may be started with any UID/GID.
+# Docker provides these through the process credentials.
+UID_NOW=$(id -u)
+GID_NOW=$(id -g)
 
-# copy default script
+echo "Running as UID=${UID_NOW} GID=${GID_NOW}"
+
+# Copy default script
 if [[ ! -f /config/ripper.sh ]]; then
     cp /ripper/ripper.sh /config/ripper.sh
 fi
 
-# settings dir
+# MakeMKV config
+export HOME=/config
+
 mkdir -p "$HOME/.MakeMKV"
 
-if [[ -f "$HOME/.MakeMKV/settings.conf" ]]; then
-    CURRENT_KEY=$(grep -oP 'app_Key = "\K[^"]+' "$HOME/.MakeMKV/settings.conf" 2>/dev/null)
+# Get current registration key
+CURRENT_KEY=$(
+    grep -oP 'app_Key = "\K[^"]+' \
+    "$HOME/.MakeMKV/settings.conf" 2>/dev/null || true
+)
+
+# Get beta key
+BETA_KEY=$(
+    curl --silent --fail \
+    'https://forum.makemkv.com/forum/viewtopic.php?f=5&t=1053' |
+    grep -oP 'T-[\w\d@]{66}' |
+    head -n1 || true
+)
+
+# Use supplied key or beta key
+if [[ -n "${KEY:-}" ]]; then
+    echo "Using MakeMKV key from KEY environment variable. ($KEY)"
 else
-    CURRENT_KEY=""
+    KEY="$BETA_KEY"
+    echo "No custom key provided. Using MakeMKV beta key. ($KEY)"
 fi
 
-# Grab beta key
-BETA_KEY=$(curl --silent 'https://forum.makemkv.com/forum/viewtopic.php?f=5&t=1053' | grep -oP 'T-[\w\d@]{66}')
-
-# Ensure KEY is set to the beta key if not provided
-if [ -z "$KEY" ]; then
-    KEY=$BETA_KEY
-    echo "No custom key provided. Using MakeMKV beta key: $KEY"
-else
-    echo "Using MakeMKV key from ENVIRONMENT variable \$KEY: $KEY"
+if [[ -z "$KEY" ]]; then
+    echo "ERROR: Could not obtain a MakeMKV registration key"
+    exit 1
 fi
 
-# Check the current key in settings.conf
-CURRENT_KEY=$(grep -oP '(?<=app_Key = ").*(?=")' "$HOME/.MakeMKV/settings.conf" 2>/dev/null || echo "")
-
-if [ "$CURRENT_KEY" == "$KEY" ] || [ "$CURRENT_KEY" == "$BETA_KEY" ]; then
-    echo "Key in settings.conf matches the provided key: $CURRENT_KEY"
-    echo "Skipping key update..."
+# Update settings if necessary
+if [[ "$CURRENT_KEY" == "$KEY" ]]; then
+    echo "MakeMKV key is already configured."
 else
     echo "Updating MakeMKV registration key..."
-    # Ensure the directory exists
-    mkdir -p ~/.MakeMKV
-
-    # Update the license key in settings.conf
-    echo app_Key = "\"$KEY"\" >"$HOME/.MakeMKV/settings.conf"
-    echo "MakeMKV key updated successfully."
+    printf 'app_Key = "%s"\n' "$KEY" > "$HOME/.MakeMKV/settings.conf"
 fi
 
-# Ensure full permissions on makemkv config
-chmod -R 777 ~/.MakeMKV
-# Run registration every time
-echo "Executing: makemkvcon reg $KEY"
-# DO NOT PUT THIS IN DOUBLE QUOTES; ELSE IT WILL FAIL
-makemkvcon reg $KEY
-# Show content of settings.conf
-echo "Showing content of $HOME/.MakeMKV/settings.conf"
-cat "$HOME/.MakeMKV/settings.conf"
+# Register MakeMKV
+echo "Registering MakeMKV..."
+makemkvcon reg "$KEY"
 
+echo "MakeMKV registration:"
+makemkvcon info | grep -i registration || true
 
-# Log current registration status
-makemkvcon info | grep -i "registration"
-
-# Update abcde OUTPUTDIR if specified in env variables
-if [ -z ${STORAGE_CD+x} ]; then
-    echo "STORAGE_CD not set, defaulting to /out/Ripper/CD"
+# abcde configuration
+if [[ -n "${STORAGE_CD:-}" ]]; then
+    echo "Using STORAGE_CD=$STORAGE_CD"
+    sed -i \
+        "/^OUTPUTDIR=/c\OUTPUTDIR=$STORAGE_CD" \
+        /ripper/abcde.conf
 else
-    echo "Custom STORAGE_CD is set, updating abcde.conf with OUTPUTDIR=${STORAGE_CD}"
-    sed -i "/OUTPUTDIR=/c\\OUTPUTDIR=$STORAGE_CD" /ripper/abcde.conf
+    echo "STORAGE_CD not set; using default OUTPUTDIR."
 fi
 
-# move abcde.conf, if found
+# Use custom abcde.conf if provided
 if [[ -f /config/abcde.conf ]]; then
-    echo "Found abcde.conf."
+    echo "Using /config/abcde.conf"
     cp -f /config/abcde.conf /ripper/abcde.conf
 fi
 
-# Check if custom group is set and create it if it doesn't exist
-if [ -z ${FILEGROUP+x} ]; then
-    echo "Custom group not set, defaulting to users"
-    FILEGROUP="users"
-else
-    echo "Custom group set"
-    if [ $(getent group ${FILEGROUP}) ]; then
-        echo "Group already exists, skipping."
-    else
-        if [ -z ${FILEGROUPID+x} ]; then
-            FILEGROUPID="4321"
-            echo "FILEGROUPID not set, defaulting to ID ${FILEGROUPID}"
-        else
-            echo "Using custom FILEGROUPID ${FILEGROUPID}"
-        fi
-        echo "Making custom group ${FILEGROUP} with ID ${FILEGROUPID}"
-        groupadd -g ${FILEGROUPID} ${FILEGROUP}
-    fi
-fi
-
-# Check if custom user is set and create it if it doesn't exist
-if [ -z ${FILEUSER+x} ]; then
-    echo "Custom user not set, defaulting to nobody"
-    FILEUSER="nobody"
-else
-    echo "Custom user set"
-    if id "${FILEUSER}" >/dev/null 2>&1; then
-        echo "User already exists, skipping."
-    else
-        if [ -z ${FILEUSERID+x} ]; then
-            FILEUSERID="321"
-            echo "FILEUSERID not set, defaulting to ID ${FILEUSERID}"
-        else
-            echo "Using custom FILEUSERID ${FILEUSERID}"
-        fi
-        echo "Making custom group ${FILEUSER} with ID ${FILEUSERID}"
-        useradd -g ${FILEGROUP} -u ${FILEUSERID} ${FILEUSER}
-    fi
-fi
-
-# Check if custom permissions are set
-if [ -z ${FILEMODE+x} ]; then
-    echo "Custom file not permissions set, defaulting to g+rw"
-    FILEMODE="g+rw"
-else
-    echo "Custom file permissions set to ${FILEMODE}"
-fi
-
-# permissions
-chown -R ${FILEUSER}:${FILEGROUP} /config
-chmod -R ${FILEMODE} /config
-
 chmod +x /config/ripper.sh
 
-bash /config/ripper.sh &
+echo "Starting ripper..."
+exec /config/ripper.sh
