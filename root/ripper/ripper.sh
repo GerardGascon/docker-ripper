@@ -71,9 +71,6 @@ handle_cd_disc() {
 
    if [[ "$rc" -eq 0 ]]; then
       printf "Completed CD rip successfully.\n"
-
-      chown -R "$FILEUSER":"$FILEGROUP" "$STORAGE_CD"
-      chmod -R "$FILEMODE" "$STORAGE_CD"
    else
       printf "CD rip failed with exit code %d.\n" "$rc"
    fi
