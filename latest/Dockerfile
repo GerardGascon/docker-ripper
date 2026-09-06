@@ -5,14 +5,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8
 
-# Invalidate build cache when MakeMKV gets a new release
-ADD "https://launchpad.net/~heyarje/+archive/ubuntu/makemkv-beta/+builds?build_text=makemkv-bin&build_state=built" /dev/null
-
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         software-properties-common \
         curl && \
-    add-apt-repository -y ppa:heyarje/makemkv-beta && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         abcde \
@@ -20,8 +16,6 @@ RUN apt-get update && \
         flac \
         glyrc \
         lame \
-        makemkv-bin \
-        makemkv-oss \
         sdparm \
         wget && \
     apt-get clean && \
