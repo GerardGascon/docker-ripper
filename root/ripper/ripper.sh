@@ -24,33 +24,37 @@ cleanup_tmp_files() {
 
 check_disc() {
    local cd_output
-   cd_output=$(timeout 30s cdparanoia -d "$DRIVE" -Q 2>&1)
-   local rc=$?
+   local rc
 
-   if [[ "$rc" -eq 0 ]] && printf '%s\n' "$cd_output" | grep -q "audio tracks"; then
+   cd_output=$(timeout 30s cdparanoia -d "$DRIVE" -Q 2>&1)
+   rc=$?
+
+   printf "cdparanoia exit code: %d\n" "$rc"
+   printf '%s\n' "$cd_output"
+
+   # Audio CD detected.
+   if [[ "$rc" -eq 0 ]] && \
+      printf '%s\n' "$cd_output" | grep -qi "audio tracks"; then
       DISC_TYPE="cd"
       BAD_RESPONSE=0
-      return
+      return 0
    fi
 
-   # No audio CD detected. Check whether the tray is open.
-   if eject -q "$DRIVE" 2>/dev/null; then
+   # No disc / no readable audio CD.
+   # This is a normal idle state, not an error.
+   if printf '%s\n' "$cd_output" | grep -qiE \
+      'Unable to open disc|Unable to read table of contents|no audio CD|no disc'; then
       DISC_TYPE="empty"
       BAD_RESPONSE=0
-      return
+      return 0
    fi
 
-   # If cdparanoia failed, don't immediately count it as a bad response.
-   # Optical drives can take a few seconds to settle after insertion.
-   if [[ "$rc" -eq 2 ]] || printf '%s\n' "$cd_output" | grep -qiE "no cd|no disc|not an audio"; then
-      DISC_TYPE="empty"
-      BAD_RESPONSE=0
-      return
-   fi
-
+   # Anything else is an actual unexpected error.
    printf "Unable to determine drive state.\n"
-   printf "cdparanoia output: %s\n" "$cd_output"
+   printf "cdparanoia output:\n%s\n" "$cd_output"
+
    ((BAD_RESPONSE++))
+   return 1
 }
 
 handle_cd_disc() {
